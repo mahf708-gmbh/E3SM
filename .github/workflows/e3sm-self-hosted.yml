@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    types: [ labeled ]
+
+jobs:
+  test:
+    if: contains(github.event.pull_request.labels.*.name, 'gha-test-chrys')
+    runs-on: self-hosted-chrys
+
+    strategy:
+        fail-fast: false
+        matrix:
+          suite:
+            - e3sm_developer
+            - e3sm_integration
+
+    steps:
+      -
+        if: contains(github.event.pull_request.labels.*.name, 'gha-test-run')
+        name: prelim
+        id: prelim
+        run: |
+            echo ::set-output name=exit_code::$?
+
+      - 
+        if: ${{ steps.prelim.outputs.exit_code }}
+        name: Checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+          submodules: recursive
+
+      - 
+        if: contains(github.event.pull_request.labels.*.name, ${{ matrix.suite }})
+        working-directory: cime/scripts
+        name: ${{ matrix.suite }}
+        run: |
+          ./create_test ${{ matrix.suite }} --machine chrysalis --compiler gnu --wait --debug
